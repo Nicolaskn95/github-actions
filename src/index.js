@@ -10,11 +10,11 @@ app.get('/api', (req, res) => {
 });
 
 app.get('/api/test', (req, res) => {
-  res.send({ message: 'Endpoint de teste'});
+  res.send({ message: 'Endpoint de teste na branch master com merge'});
 });
 
 app.get('/api/test-2', (req, res) => {
-  res.send({ message: 'Endpoint de teste 2'});
+  res.send({ message: 'Branch master endpoint teste 2'});
 });
 
 app.listen(port, () => {
