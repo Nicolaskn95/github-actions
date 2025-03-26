@@ -13,6 +13,10 @@ app.get('/api/test', (req, res) => {
   res.send({ message: 'Endpoint alternativo para teste ba branch developpppp'});
 });
 
+app.get('/api/login', (req, res) => {
+  res.send({ message: 'logado!'});
+});
+
 app.get('/api/test-2', (req, res) => {
   res.send({ message: 'Endpoint de teste na developpppp'});
 });
