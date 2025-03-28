@@ -16,6 +16,9 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           fetch-depth: 0
 
+      - name: Instalar semver
+        run: npm install -g semver
+
       - uses: actions/checkout@v2
 
       - name: Setup Node.js
