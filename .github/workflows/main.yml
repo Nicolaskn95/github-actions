@@ -23,7 +23,10 @@ jobs:
         id: version
         run: |
           git fetch --tags
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          LAST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          if [ -z "$LAST_TAG" ]; then
+            LAST_TAG="v0.0.0"
+          fi
           echo "Versão Atual: $LAST_TAG"
 
           if [ "$LAST_TAG" = "v0.0.0" ]; then
@@ -34,12 +37,13 @@ jobs:
 
           echo "Commits desde a última tag:"
           echo "$COMMITS"
-
+          # Inicializando variáveis
           MAJOR=0
           MINOR=0
           PATCH=0
 
-          while IFS= read -r COMMIT; do
+          # Analisando mensagens de commit
+          for COMMIT in "$COMMITS"; do
             if [[ "$COMMIT" == *"BREAKING CHANGE"* ]]; then
               MAJOR=1
             elif [[ "$COMMIT" == *"feat"* ]]; then
@@ -47,8 +51,8 @@ jobs:
             elif [[ "$COMMIT" == *"fix"* ]]; then
               PATCH=1
             fi
-          done <<< "$COMMITS"
-
+          done
+          # Calculando a nova versão usando semver
           CURRENT_VERSION=${LAST_TAG#v}
           NEW_VERSION=$CURRENT_VERSION
           if [[ $MAJOR -eq 1 ]]; then
@@ -60,7 +64,7 @@ jobs:
           fi
 
           echo "Nova versão: $NEW_VERSION"
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "new_version=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Atualizar versão no package.json
         run: |
