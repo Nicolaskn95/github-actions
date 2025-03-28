@@ -19,6 +19,40 @@ jobs:
       - name: Instalar semver
         run: npm install -g semver
 
+      - name: Calcular nova versão
+        id: version
+        run: |
+          git fetch --tags
+          LAST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          if [ -z "$LAST_TAG" ]; then
+            LAST_TAG="v0.0.0"
+          fi
+          echo "Versão Atual: $LAST_TAG"
+
+          if [ "$LAST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --pretty=format:"%s")
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s")
+          fi
+
+          echo "Commits desde a última tag:"
+          echo "$COMMITS"
+
+          # Inicializando variáveis
+          MAJOR=0
+          MINOR=0
+          PATCH=0
+          # Analisando mensagens de commit
+          for COMMIT in "$COMMITS"; do
+            if [[ "$COMMIT" == *"BREAKING CHANGE"* ]]; then
+              MAJOR=1
+            elif [[ "$COMMIT" == *"feat"* ]]; then
+              MINOR=1
+            elif [[ "$COMMIT" == *"fix"* ]]; then
+              PATCH=1
+            fi
+          done
+
       - uses: actions/checkout@v2
 
       - name: Setup Node.js
