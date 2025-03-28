@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checar repositório
-        uses: actions/checkout@v4 # Atualizado para v4
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN }}
           fetch-depth: 0
@@ -23,10 +23,7 @@ jobs:
         id: version
         run: |
           git fetch --tags
-          LAST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-          if [ -z "$LAST_TAG" ]; then
-            LAST_TAG="v0.0.0"
-          fi
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Versão Atual: $LAST_TAG"
 
           if [ "$LAST_TAG" = "v0.0.0" ]; then
@@ -37,40 +34,54 @@ jobs:
 
           echo "Commits desde a última tag:"
           echo "$COMMITS"
-          # Inicializando variáveis
+
+          # Inicializando flags para incremento de versão
           MAJOR=0
           MINOR=0
           PATCH=0
 
           # Analisando mensagens de commit
-          for COMMIT in "$COMMITS"; do
-            if [[ "$COMMIT" == *"BREAKING CHANGE"* ]]; then
+          while IFS= read -r COMMIT; do
+            if [[ "$COMMIT" == *"BREAKING CHANGE"* ]] || [[ "$COMMIT" == *"BREAKING_CHANGE"* ]]; then
               MAJOR=1
-            elif [[ "$COMMIT" == *"feat"* ]]; then
+            elif [[ "$COMMIT" == *"feat:"* ]] || [[ "$COMMIT" == *"feat("* ]] || [[ "$COMMIT" == feature* ]]; then
               MINOR=1
-            elif [[ "$COMMIT" == *"fix"* ]]; then
+            elif [[ "$COMMIT" == *"fix:"* ]] || [[ "$COMMIT" == *"fix("* ]] || [[ "$COMMIT" == *"bugfix"* ]]; then
               PATCH=1
             fi
-          done
+          done <<< "$COMMITS"
+
           # Calculando a nova versão usando semver
           CURRENT_VERSION=${LAST_TAG#v}
           NEW_VERSION=$CURRENT_VERSION
+
           if [[ $MAJOR -eq 1 ]]; then
             NEW_VERSION=$(semver -i major $CURRENT_VERSION)
+            echo "Incrementando MAJOR version"
           elif [[ $MINOR -eq 1 ]]; then
             NEW_VERSION=$(semver -i minor $CURRENT_VERSION)
+            echo "Incrementando MINOR version"
           elif [[ $PATCH -eq 1 ]]; then
             NEW_VERSION=$(semver -i patch $CURRENT_VERSION)
+            echo "Incrementando PATCH version"
+          else
+            echo "Nenhuma mudança significativa encontrada, mantendo versão atual"
+            NEW_VERSION=$CURRENT_VERSION
           fi
 
-          echo "Nova versão: $NEW_VERSION"
+          echo "Nova versão: v$NEW_VERSION"
           echo "new_version=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Atualizar versão no package.json
         run: |
-          npm version ${{ env.NEW_VERSION }} --no-git-tag-version
+          if [ "${{ env.NEW_VERSION }}" != "" ]; then
+            npm version ${{ env.NEW_VERSION }} --no-git-tag-version
+          else
+            echo "Nenhuma nova versão para atualizar"
+          fi
 
       - name: Commit e push
+        if: env.NEW_VERSION != ''
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
@@ -79,4 +90,5 @@ jobs:
           git add package.json
           git commit -m "chore(release): version ${{ env.NEW_VERSION }}"
           git tag v${{ env.NEW_VERSION }}
-          git push origin main --tags
+          git push origin main
+          git push origin v${{ env.NEW_VERSION }}
